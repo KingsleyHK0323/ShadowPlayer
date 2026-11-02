@@ -1,0 +1,58 @@
+# Authored by: OpenAI-Codex
+name: Source repository checks
+
+on:
+  push:
+    branches:
+      - Source_Code
+  pull_request:
+    branches:
+      - Source_Code
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-checks:
+    name: Check repository changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check whitespace and merge conflict markers
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --check "$PR_BASE" "$PR_HEAD"
+          elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" ]] &&
+            [[ ! "$PUSH_BEFORE" =~ ^0+$ ]] &&
+            git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+            git diff --check "$PUSH_BEFORE" "$GITHUB_SHA"
+          else
+            git show --format= --check "$GITHUB_SHA"
+          fi
+
+      - name: Report check scope
+        shell: bash
+        run: |
+          {
+            echo "### Source repository checks"
+            echo "- Whitespace and conflict markers: checked."
+            echo "- Application build and tests: not configured; the technology stack and implementation are not yet established."
+          } >> "$GITHUB_STEP_SUMMARY"
