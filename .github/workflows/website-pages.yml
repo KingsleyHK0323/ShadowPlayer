@@ -1,0 +1,95 @@
+# Authored by: OpenAI-Codex
+name: Website checks and deployment
+
+on:
+  push:
+    branches:
+      - Website
+  pull_request:
+    branches:
+      - Website
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Check and package website
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      site_ready: ${{ steps.site.outputs.ready }}
+    steps:
+      - name: Check out website
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check whitespace and merge conflict markers
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --check "$PR_BASE" "$PR_HEAD"
+          elif [[ -n "$PUSH_BEFORE" ]] &&
+            [[ ! "$PUSH_BEFORE" =~ ^0+$ ]] &&
+            git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+            git diff --check "$PUSH_BEFORE" "$GITHUB_SHA"
+          else
+            git show --format= --check "$GITHUB_SHA"
+          fi
+
+      - name: Inspect static website
+        id: site
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -L index.html ]]; then
+            echo "::error::The website entry point must not be a symbolic link."
+            exit 1
+          elif [[ ! -f index.html ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No root index.html exists; deployment is skipped."
+          else
+            if find . -path './.git' -prune -o -type l -print -quit | grep -q .; then
+              echo "::error::The website contains a symbolic link."
+              exit 1
+            fi
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure GitHub Pages
+        if: github.event_name == 'push' && steps.site.outputs.ready == 'true'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Upload website artifact
+        if: github.event_name == 'push' && steps.site.outputs.ready == 'true'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: .
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: validate
+    if: github.event_name == 'push' && needs.validate.outputs.site_ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: shadowplayer-github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
