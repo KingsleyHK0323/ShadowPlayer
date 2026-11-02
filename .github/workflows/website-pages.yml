@@ -13,6 +13,10 @@ permissions:
   contents: read
   pages: read
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('shadowplayer-pr-{0}', github.ref) || 'shadowplayer-pages-workflow' }}
+  cancel-in-progress: false
+
 jobs:
   validate:
     name: Check and package website
@@ -24,6 +28,7 @@ jobs:
       - name: Check out website
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ github.event_name == 'push' && 'Website' || github.ref }}
           fetch-depth: 0
           persist-credentials: false
 
