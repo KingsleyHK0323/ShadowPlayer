@@ -11,6 +11,10 @@ permissions:
   contents: read
   pages: read
 
+concurrency:
+  group: shadowplayer-pages-workflow
+  cancel-in-progress: false
+
 jobs:
   package:
     name: Package the Website branch
