@@ -8,7 +8,7 @@ Open `index.html` in a browser or serve this directory with a local HTTP server.
 
 The repository statistics on the home page request public GitHub API data when the page loads. The release field shows the latest stable release; prereleases are not included. Contributor avatars are loaded from GitHub. Requests may fail because of a network error, browser restrictions, or GitHub rate limits; the rest of the website remains available. The page discloses these requests to visitors.
 
-The appearance selector supports the system color scheme, light mode, and dark mode. The selection is stored in the browser when storage is available. The guide search filters the topics on that page in the browser and does not send the search text to a server.
+The appearance selector supports the system color scheme, light mode, and dark mode. The selection is stored in the browser when storage is available. The guide search filters the topics on that page in the browser and does not send the search text to a server. Navigation wraps on narrow screens, and the page icon reuses the existing website header mark.
 
 ## Deployment
 
